@@ -6,28 +6,35 @@
  
 int sensorValue = 0;  // variable to store the value coming from the sensor
 int mode;//
-int  Speed=7000;
+int  Speed=7812;
 void RegConfigPrint();
 //innitializing all buffers
 byte RegBuffer[50]={0};
 byte TX_Buffer[10]={0};
 byte RX_Buffer[10]={0};
 byte i,length;
+unsigned long start;
+unsigned long count;
 void setup (void)
 {
-mode=0;
+//mode=0;
 
 Serial.begin (9600);
 //Serial.flush();
 //Serial.print("set up");
 setSPI();
-setInterrupt1();
+//setInterrupt1();
+syncup();
+//syncdown();
+Serial.print("done");
 }
 void loop(void){
 // Serial.flush();
 while (mode !=7){
+  
  Serial.println("frame start");
-delay(50000);
+
+delay(2000);
  Serial.println("frame end");
 }}
 
@@ -44,50 +51,24 @@ ISR(TIMER1_COMPA_vect)//first timer interrupt
 {//Serial.flush();
   //Serial.println("work?"); 
 if(mode==0)//transmit mode
-{ Speed=7000;
-  setTX();//switching to transmit mode
-  TX_Buffer[1]=TX_Buffer[1]+1;
+{
+   TX_Buffer[1]=TX_Buffer[1]+1;
   TX_Buffer[2]=TX_Buffer[2]+2;
   TX_Buffer[3]=3;
   TX_Buffer[4]=4;
   TX_Buffer[5]=5;
-  TX_Buffer[6]=6+TX_Buffer[1];
-  CC110L.SendData(TX_Buffer,61);
-  Serial.println("mode0");
+  TX_Buffer[6]=6+TX_Buffer[1]; 
+  TX(); 
   mode=1;
  
 }
-
 else{//recieve mode
- Speed=7000;
-// Serial.println("mode1");
-setRX();//switching to reieve mode
-int start=millis();
-int rec=0;
-int count=0;
-while (count<10000)
-{  //Serial.println("stuck?"); 
- 
-   if(CC110L.CheckReceiveFlag())
- {
-   int  size=CC110L.ReceiveData(RX_Buffer);
- //Serial.println(size);  
- rec=1;
-  break;
- }
-count++;
-
-}
-if(rec==1){
- for(i=0;i<10;i++)
-   {
-      Serial.print(RX_Buffer[i],DEC);
-//      Serial.print(' ',BYTE);
-    }
-  }
-
- mode=0;
-
+//
+Serial.println("mode1");
+RX();
+mode=0;
+ count=(micros()-start)/1000;// calculating the time that haspassed by
+ Speed=7812-count*7812/500;
 }
 //Serial.println("reset");
 
@@ -133,7 +114,7 @@ void setTX(void)
 //CC110L.WriteSingleReg(0x09,0x09);
 //CC110L.WriteSingleReg(0x06,0xC9);
 CC110L.ReadBurstReg(0,RegBuffer,47);
-for( i=0;i<61;i++)
+for( i=0;i<10;i++)
   {
      TX_Buffer[i]=0;
   }
@@ -164,3 +145,90 @@ void RegConfigPrint()
 
 }
 }
+//sync routines
+void syncup(void)
+{
+  for( int i=0;i<10;i++)
+ {
+   TX_Buffer[i]=5;
+ }
+while(1){
+  TX();
+  Serial.print("Syncup");
+ if(RX()==1)
+  {if(RX_Buffer[3]==5){
+    TX();
+    break;
+  }
+  }   
+}
+mode=0;
+setInterrupt1();
+}
+void syncdown(void)
+{ for(int i=0;i<10;i++)
+ {
+   TX_Buffer[i]=5;
+ }
+  while(1)
+  {if(RX()==1)
+    {Serial.print("Sync down");
+      if(RX_Buffer[3]==5)
+      {
+    TX();
+    break;
+      }
+  }
+ mode=1;
+setInterrupt1(); 
+}
+while(1)
+{if(RX()==1)
+  break;}
+}
+void TX(void)
+{ start=micros();
+ // long count=0;
+  setTX();//switching to transmit mode
+  TX_Buffer[1]=TX_Buffer[1]+1;
+  TX_Buffer[2]=TX_Buffer[2]+2;
+  TX_Buffer[3]=3;
+  TX_Buffer[4]=4;
+  TX_Buffer[5]=5;
+  TX_Buffer[6]=6+TX_Buffer[1];
+  CC110L.SendData(TX_Buffer,10);
+  Serial.println("mode0");
+ count=(micros()-start)/1000;// calculating the time that haspassed by
+ Speed=7812-count*7812/500;
+}
+int RX(void)
+{
+  setRX();//switching to reieve mode
+//unsigned long start=millis();
+int rec=0;
+int count=0;
+while (count<500)
+{  //Serial.println("stuck?"); 
+ 
+   if(CC110L.CheckReceiveFlag())
+ {
+   int  size=CC110L.ReceiveData(RX_Buffer);
+ //Serial.println(size);  
+  rec=1;
+  break;
+ }
+count=(micros()-start)/1000;// calculating the time that haspassed by
+
+count++;
+}
+if(rec==1){
+ for(i=0;i<10;i++)
+   {
+      Serial.print(RX_Buffer[i],DEC);
+//      Serial.print(' ',BYTE);
+    }
+  }
+return rec;
+}
+
+
