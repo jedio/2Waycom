@@ -69,7 +69,7 @@ TX_Buffer[6]=0X0F;
 CC110L.SendData(TX_Buffer,size);
 for (int i = 0 ; i<size ;i++)
 {
-//Serial.print(TX_Buffer[i]);
+Serial.print(TX_Buffer[i]);
 }
 //digitalWrite(A0, HIGH);   // set the LED on
 //  delay(1000);              // wait for a second
