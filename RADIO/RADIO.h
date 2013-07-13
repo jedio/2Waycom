@@ -197,6 +197,11 @@ public:
   
 };
 
+class Node {
+public:
+byte content[];
+
+};
 extern RADIOClass CC110L;
 
 
