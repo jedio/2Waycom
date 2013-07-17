@@ -13,17 +13,20 @@ int synced;
 unsigned long start;
 unsigned long now;
 long diff;
+int max=10;
 unsigned int count;
 byte RegBuffer[50]={0};
-byte TX_Buffer[10][3]={0};
-byte RX_Buffer[10][3]={0};
+Node TX_Buffer[max];
+Node RX_Buffer[max];
 byte i,length;
 int light,light1;
-int  rpi=0;//receive process index
+int  rpi=max;//receive process index
 int  rsi=0;//receive send index;
 int  tpi=0;
 int  tsi=0;
 int  sent=0;
+int  emT=1;
+int  fulT=0;
 byte TXT[3];
 float input;
 void setup (void)
@@ -59,8 +62,15 @@ void loop (void)
     input=input/4.0;  
     TXT[0]=4;
     TXT[1]=0;
-    TXT[2]=1;   
-    sent=1;
+    TXT[2]=1; 
+    if(!fulT)
+    {
+    TX_Buffer[tsi].content=TXT;
+    if(!enqueueT())    
+    fulT=0;
+    else fulT=1;
+    }
+    else Serial.println("full buffer");
    
   }
   if(digitalRead(4)==LOW)
@@ -193,11 +203,14 @@ ISR(TIMER1_COMPA_vect)//first timer interrupt
                 
                  
                   mode=1;
-                  if(sent==1)
+                  if(!emT)
                   { 
-                   Serial.println("sent"); 
-                  TX(TXT);
-                   sent=0;
+                  Serial.println("sent"); 
+                  TX(TX_Buffer[tpi].content());
+                  if(!dequeueT())
+                  emT=1;
+                  else emT=0;
+                 
                    }
                  //transmit mode
   		      
@@ -325,3 +338,30 @@ int RX(byte *RX_BFF)
             //toggle();
             return rec;//RETURNS 1 if something was recieved returns zero if something was transmitted
        } 
+/******************************************************queue routines********************/
+int enqueueT()
+ {if(!fulT)
+  tsi=inc(tsi);
+  if(tsi==tpi)
+   return 0;//return 0 if the queue is full
+   else return 1;//returning 1 if the queue is not full
+ }
+ int dequeueT()
+ {if(!emT)
+  tpi=inc(tpi);
+  if(tsi==tpi)
+  return 0;//return 0 if the queue is empty
+  else return 1;//returning 1 if the queue is not empty
+ }
+ int enqueueR()
+ {
+ }
+ int dequeueR()
+ {
+ }
+ int inc(int x)
+ {if(x==(max-1))
+   x=0;
+  else x+=1;
+  return x;
+ }
